@@ -66,6 +66,12 @@ protocol BuffMorphemeSubClass: AnyObject, SkillMorphemeMethod {
     init()
 }
 
+extension SkillMorphemeMethod {
+    func updateSkill(_ skill: SkillMorpheme) {
+        print("\(type(of: self))")
+    }
+}
+
 class BuffMorpheme: CustomStringConvertible {
     var rawString: Substring = ""
     var _values: [BuffMorphemeValue] = []
@@ -441,6 +447,37 @@ class RoomMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    lazy var roomTypes: Set<RoomType> = if let id {
+        [
+            // TODO:    read rooms with id from https://github.com/Kengxxiao/ArknightsGameData/blob/master/zh_CN/gamedata/excel/gamedata_const.json
+        ]
+    } else {
+        [
+            RoomType(localizedString: name)
+        ]
+    }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        if range?.range == .all {
+            skill.target = .to
+        }
+        let target = skill.getTarget()
+
+        if let range = range?.range {
+            target.roomRange = range
+        }
+        target.itemInRooms.formUnion(roomTypes)
+        if roomTypes.count == 1 {
+            target.items = [.room(roomTypes.first!)]
+        }
+    }
+
+    func updateSkillInRoomAndRange(_ target: SkillMorpheme.Target) {
+        target.itemInRooms.formUnion(roomTypes)
+        target.roomRange = range?.range
+    }
 }
 
 class ProductionMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -534,6 +571,16 @@ class Item1Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        if let item {
+            skill.getTarget().items = [.unknown(item)]
+        } else if let gang {
+            gang.updateSkill(skill)
+            skill.getTarget().gangExceptSelf = true
+        }
+    }
 }
 
 class Item2Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
@@ -555,7 +602,11 @@ class Item2Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
             }
         }
     }
-
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        item.updateSkill(skill)
+        skill.getTarget().ids = [id]
+    }
 }
 
 class Item3Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
@@ -577,7 +628,11 @@ class Item3Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
             }
         }
     }
-
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        item.updateSkill(skill)
+        skill.getTarget().ids = [id]
+    }
 }
 
 class Item4Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
@@ -600,6 +655,11 @@ class Item4Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        item.updateSkill(skill)
+        skill.getTarget().ids = [id]
+    }
 }
 
 class Item5Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
@@ -620,12 +680,21 @@ class Item5Morpheme: BuffMorpheme, ItemMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        item.updateSkill(skill)
+    }
 }
 
 // 订单获取效率
 class EfficientMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         "(?:生产力|(?:订单)?(?:获取)?的?效率|(?:无人机)?的?充能速度|线索搜集速度|(?:人脉资源|人力办公室)?的?联络速度|(?:干员)?的?恢复效果|龙门币收益)"
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().items = [.unknown(String(rawString))]
     }
 }
 
@@ -650,6 +719,11 @@ class EfficientOrItemMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        efficient?.updateSkill(skill)
+        item?.updateSkill(skill)
+    }
 }
 
 
@@ -667,6 +741,11 @@ class SkillPointMorpheme: BuffMorpheme, BuffMorphemeSubClass {
         case .itemID: self.id = value
         case .itemName: self.name = value
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().items = [.skillPoint(name)]
+        skill.getTarget().ids = [id]
     }
 }
 protocol GangMorpheme: SkillMorphemeMethod {
@@ -691,6 +770,12 @@ class Gang1Morpheme: BuffMorpheme, GangMorpheme, BuffMorphemeSubClass {
             self.name = value
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        target.items = [.gangOrPeople(name)]
+        target.ids = [id]
+    }
 }
 
 class Gang2Morpheme: BuffMorpheme, GangMorpheme, BuffMorphemeSubClass {
@@ -710,6 +795,11 @@ class Gang2Morpheme: BuffMorpheme, GangMorpheme, BuffMorphemeSubClass {
             self.name = value
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().ids = [id]
+        skill.getTarget().items = [.gangOrPeople(name)]
+    }
 }
 
 class Gang3Morpheme: BuffMorpheme, GangMorpheme, BuffMorphemeSubClass {
@@ -725,6 +815,10 @@ class Gang3Morpheme: BuffMorpheme, GangMorpheme, BuffMorphemeSubClass {
         case .name:
             self.name = value
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().items = [.gangOrPeople(name)]
     }
 }
 
@@ -906,6 +1000,16 @@ class EachValue1Morpheme: BuffMorpheme, EachValueMorpheme, BuffMorphemeSubClass 
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.value = self.value
+        target.valueType = .each
+        item?.updateSkill(skill)
+        gang?.updateSkill(skill)
+        formula?.updateSkill(skill)
+    }
 }
 
 protocol ValueChangedMorpheme: SkillMorphemeMethod {
@@ -932,6 +1036,16 @@ class ValueChanged1Morpheme: BuffMorpheme, ValueChangedMorpheme, BuffMorphemeSub
             self.value = .string(value)
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let targetObj = skill.getTarget()
+        if provideAction?.extra ?? false, let value = targetObj.value {
+            targetObj.value = value + self.value
+        } else {
+            targetObj.value = self.value
+        }
+    }
 }
 
 class ValueChanged2Morpheme: BuffMorpheme, ValueChangedMorpheme, BuffMorphemeSubClass {
@@ -948,6 +1062,11 @@ class ValueChanged2Morpheme: BuffMorpheme, ValueChangedMorpheme, BuffMorphemeSub
         case .value:
             self.value = .string(value)
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.value = value
     }
 }
 
@@ -1008,6 +1127,18 @@ class ValueInRangeMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        switch value! {
+        case .greaterThan(let value):
+            target.value = value
+            target.valueComparison = .init(value: >)
+        case .lessThan(let value):
+            target.value = value
+            target.valueComparison = .init(value: <)
+        }
+    }
 }
 
 class Increase1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1039,6 +1170,15 @@ class IncreaseClueMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        gang.updateSkill(skill)
+        guard target.items.count == 1, case let .gangOrPeople(gang) = target.items[0] else {
+            fatalError("unknown case")
+        }
+        target.items = [.clue(gang: gang)]
+    }
 }
 
 class RemoveAllMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1069,11 +1209,25 @@ class RemoveAllMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        room.updateSkillInRoomAndRange(target)
+        efficient.updateSkill(skill)
+        target.itemFromOperator = operators.getOperators()
+    }
 }
 
 class ConditionEachValue1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"[[:Defer.Each:]]招募位"#
+    }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        target.items = [.recruitingPosition]
     }
 }
 
@@ -1095,6 +1249,13 @@ class ConditionEachValue2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        value.updateSkill(skill)
+        skill.getTarget().itemInRooms.insert(.manufacture)
+    }
 }
 
 /// "每间设施每级"
@@ -1113,6 +1274,14 @@ class ConditionEachValue3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.room = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        room?.updateSkillInRoomAndRange(target)
+        target.items = [.roomLevel((room?.roomTypes ?? .all))]
+        skill.target = .to
     }
 }
 
@@ -1133,11 +1302,24 @@ class ConditionEachValue4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        skillPoint.updateSkill(skill)
+    }
 }
 
 class ConditionEachValue5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"当前订单数与订单上限每差<@cc.vup>1</>笔订单"#
+    }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        target.items = [.orderLimit]
     }
 }
 
@@ -1157,6 +1339,10 @@ class ConditionEachValue7Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.value = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        value.updateSkill(skill)
     }
 }
 
@@ -1179,17 +1365,30 @@ class ConditionEachValue10Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        value.updateSkill(skill)
+    }
 }
 
 class ConditionEachValue13Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"基建内"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().itemInRooms = .all
+    }
 }
 
 class ConditionEachValue15Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"每人"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+
+        skill.getTarget().valueType = .each
     }
 }
 
@@ -1217,6 +1416,16 @@ class ConditionEachValue17Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.value = .string(value)
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        target.itemFromOperator = operators?.getOperators()
+        efficient.updateSkill(skill)
+        if let value {
+            target.value = value
+        }
+    }
 }
 
 class ConditionEfficient3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1242,6 +1451,13 @@ class ConditionEfficient3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        skill.getTarget().items = [.contactSpeed]
+        valueInRange.updateSkill(skill)
+    }
 }
 
 class ConditionFormulaMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1263,6 +1479,17 @@ class ConditionFormulaMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.typeCount = .string(value)
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        if let production {
+            target.items = [.unknown(production)]
+        }
+        if let typeCount {
+            target.items = [.formulaType]
+            target.value = typeCount
+        }
+    }
 }
 
 class ConditionGang1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1282,6 +1509,10 @@ class ConditionGang1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.gang = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        gang.updateSkill(skill)
     }
 }
 
@@ -1307,6 +1538,14 @@ class ConditionGang2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.gang = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.isReverse = true
+        target.itemInRooms.formUnion(room.roomTypes)
+        target.roomRange = .others
+        gang.updateSkill(skill)
     }
 }
 
@@ -1336,6 +1575,14 @@ class ConditionGang4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        target.value = .number(1)
+        target.itemInRooms.formUnion(room.roomTypes)
+        gang.updateSkill(skill)
+    }
 }
 
 class ConditionGang5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1355,6 +1602,17 @@ class ConditionGang5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.range = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        guard
+            skill.target == .to,
+            skill.from.items.count == 1,
+            case let .gangOrPeople(name) = skill.from.items[0]
+        else {
+            fatalError("unknown case")
+        }
+        skill.to.items = [.gangOrPeople(name)]
     }
 }
 
@@ -1381,6 +1639,12 @@ class ConditionItemMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        item.updateSkill(skill)
+        valueInRange.updateSkill(skill)
+    }
 }
 
 protocol MaximumValue: SkillMorphemeMethod {
@@ -1401,6 +1665,10 @@ class ConditionMaximumValue1Morpheme: BuffMorpheme, MaximumValue, BuffMorphemeSu
         case .value:
             self.value = .string(value)
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().maxSourceValue = value
     }
 }
 
@@ -1425,6 +1693,12 @@ class ConditionMaximumValue2Morpheme: BuffMorpheme, MaximumValue, BuffMorphemeSu
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.value = value
+        efficient?.updateSkill(skill)
+    }
 }
 
 class ConditionMaximumValue3Morpheme: BuffMorpheme, MaximumValue, BuffMorphemeSubClass {
@@ -1442,6 +1716,11 @@ class ConditionMaximumValue3Morpheme: BuffMorpheme, MaximumValue, BuffMorphemeSu
         case .value:
             self.value = .string(value)
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.value = value
     }
 }
 
@@ -1469,6 +1748,18 @@ class ConditionRoom1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        let target = skill.getTarget()
+        if let gang {
+            gang.updateSkill(skill)
+        } else if let with {
+            target.items = [.gangOrPeople(with)]
+        }
+        target.itemInRooms.formUnion(room.roomTypes)
+    }
 }
 
 class ConditionRoom2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1491,6 +1782,14 @@ class ConditionRoom2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.room = value
             }
         }
+    }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        target.items = [.gangOrPeople(person)]
+        target.itemInRooms.formUnion(room.roomTypes)
+        skill.target = .to
     }
 }
 
@@ -1515,6 +1814,12 @@ class ConditionRoom3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.room = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.items = operators.map { .gangOrPeople($0) }
+        room.updateSkillInRoomAndRange(target)
     }
 }
 
@@ -1541,6 +1846,11 @@ class ConditionRoom4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        room.updateSkill(skill)
+        skill.getTarget().items = [.operator(operators.getOperators())]
+    }
 }
 
 class ConditionRoom5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1565,6 +1875,12 @@ class ConditionRoom5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        target.items = [.gangOrPeople(person)]
+        room.updateSkillInRoomAndRange(target)
+    }
 }
 
 class ConditionPositionMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1582,6 +1898,13 @@ class ConditionPositionMorpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.room = value
             }
         }
+    }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+
+        assert(room.roomTypes.count == 1)
+        skill.effectiveRoom = room.roomTypes.first
     }
 }
 
@@ -1610,6 +1933,14 @@ class ConditionRoom6Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        target.value = value
+        target.itemInRooms.formUnion(room.roomTypes)
+        gang.updateSkill(skill)
+    }
 }
 
 class ConditionRoom7Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1630,6 +1961,10 @@ class ConditionRoom7Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().itemNotInRooms.formUnion(room.roomTypes)
+    }
 }
 
 class ConditionSamePositionMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1648,6 +1983,12 @@ class ConditionSamePositionMorpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.room = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.from.value = .number(1)
+        skill.target = .from
+        self.room.updateSkill(skill)
     }
 }
 
@@ -1668,6 +2009,12 @@ class ConditionPeople3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        target.items = [.mood]
+        valueRange.updateSkill(skill)
+    }
 }
 
 class ConditionPeople4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1686,6 +2033,14 @@ class ConditionPeople4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.valueRange = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        let target = skill.getTarget()
+        target.items = [.mood]
+        target.itemFromOperator = [.myself]
+        valueRange?.updateSkill(skill)
     }
 }
 
@@ -1712,6 +2067,20 @@ class ConditionTrading1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.nextOnly = true
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        if valueRange != nil {
+            skill.target = .from
+        } else if staticValue != nil {
+            skill.target = .to
+        }
+        let target = skill.getTarget()
+        target.items = [.unknown("赤金订单交付数")]
+        if let staticValue {
+            target.value = staticValue
+        }
+        valueRange?.updateSkill(skill)
+    }
 }
 
 class ConditionMood1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1729,6 +2098,16 @@ class ConditionMood1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
         case .selfOnly:
             self.selfOnly = true
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .from)
+        target.items = [.mood]
+        target.itemFromOperator = [.myself]
+        if !selfOnly {
+            target.itemFromOperator?.insert(.others)
+        }
+        target.value = .number(24)
     }
 }
 
@@ -1753,6 +2132,11 @@ class ChangesElementMorpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.item = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        formula?.updateSkill(skill)
+        item?.updateSkill(skill)
     }
 }
 
@@ -1806,6 +2190,13 @@ class EventChangesStatement1Morpheme: BuffMorpheme, EventChangesStatementMorphem
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        room?.updateSkillInRoomAndRange(target)
+        valueChanged.updateSkill(skill)
+        changesElement.updateSkill(skill)
+    }
 }
 
 class EventChangesStatement2Morpheme: BuffMorpheme, EventChangesStatementMorpheme, BuffMorphemeSubClass {
@@ -1829,6 +2220,11 @@ class EventChangesStatement2Morpheme: BuffMorpheme, EventChangesStatementMorphem
                 self.changesElement = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        valueChanged?.updateSkill(skill)
+        changesElement?.updateSkill(skill)
     }
 }
 
@@ -1857,11 +2253,27 @@ class EventEfficient1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.value = .string(value)
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        if forAll {
+            target.effectiveFrom = .simultaneous
+        }
+        target.value = value
+        efficient?.updateSkill(skill)
+    }
 }
 
 class EventEfficient4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"[[:Increase.all:]]会客室内(?:另一)?干员<@cc\.kw>所属派系的线索倾向效果(?:</>)+"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.items = [.clueFromOther]
+        target.itemInRooms.insert(.meeting)
     }
 }
 
@@ -1881,6 +2293,9 @@ class EventEfficient5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.roomRange = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
     }
 }
 
@@ -1906,6 +2321,12 @@ class EventEfficient6Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        efficient.updateSkill(skill)
+        start.updateSkill(skill)
+    }
 }
 
 class EventEfficient7Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1929,6 +2350,12 @@ class EventEfficient7Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.valueChanged = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .to
+        efficient.updateSkill(skill)
+        valueChanged.updateSkill(skill)
     }
 }
 
@@ -1961,6 +2388,18 @@ class EventEfficient8Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        var target = skill.getTarget(updateTarget: .from)
+        target.items = [.operator(operators.getOperators())]
+
+        target = skill.getTarget(updateTarget: .to)
+
+        efficient.updateSkill(skill)
+
+        valueChanged.updateSkill(skill)
+    }
 }
 
 class EventEfficientStepperMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1981,6 +2420,13 @@ class EventEfficientStepperMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .increase)
+        target.valueType = .perHour
+        target.items = [.efficient]
+        valueChanged.updateSkill(skill)
+    }
 }
 
 class EventEfficientMaximumValueMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -1997,6 +2443,11 @@ class EventEfficientMaximumValueMorpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.value = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .to
+        value.updateSkill(skill)
     }
 }
 
@@ -2022,6 +2473,12 @@ class EventGang1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
         case .rule:
             self.rule = value
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        gang.updateSkill(skill)
+        skill.getTarget().ids = [tagID]
+        skill.getTarget().kaibaSpecialRuleID = rule
     }
 }
 
@@ -2052,6 +2509,15 @@ class EventGang2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        people.updateSkill(skill)
+
+        skill.target = .to
+        gang.updateSkill(skill)
+        room.updateSkillInRoomAndRange(skill.getTarget())
+    }
 }
 
 class EventMeeting1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2070,6 +2536,12 @@ class EventMeeting1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.increaseClue = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.itemInRooms.insert(.meeting)
+        increaseClue.updateSkill(skill)
     }
 }
 
@@ -2098,6 +2570,15 @@ class EventEfficientMorpheme: BuffMorpheme, BuffMorphemeSubClass {
             selfOnly = true
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        valueChanged.updateSkill(skill)
+        efficient.updateSkill(skill)
+        if selfOnly {
+            target.itemFromOperator = [.myself]
+        }
+    }
 }
 
 class EventSkillMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2119,6 +2600,16 @@ class EventSkillMorpheme: BuffMorpheme, BuffMorphemeSubClass {
         case .toSkillPoint:
             self.toSkillPoint = value
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        var target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        target.items = skillPoint.map { .skillPoint($0.name) }
+        target.ids = skillPoint.map { $0.id }
+
+        target = skill.getTarget(updateTarget: .to)
+        target.items = [.skillPoint(toSkillPoint)]
     }
 }
 
@@ -2147,6 +2638,13 @@ class EventTrading1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        room.updateSkillInRoomAndRange(target)
+        target.value = value
+        item.updateSkill(skill)
+    }
 }
 
 class EventTrading2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2171,10 +2669,16 @@ class EventTrading2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        room.updateSkillInRoomAndRange(target)
+        changesStatement.updateSkill(skill)
+    }
 }
 
 protocol OperatorMethod: SkillMorphemeMethod {
-
+    func getOperators() -> Set<SkillMorpheme.Operator>
 }
 
 class Operator1Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
@@ -2192,6 +2696,14 @@ class Operator1Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
             self.isAll = true
         }
     }
+    func getOperators() -> Set<SkillMorpheme.Operator> {
+        usedMorpheme.insert("\(type(of: self))")
+        var operators: Set<SkillMorpheme.Operator> = [.myself]
+        if isAll {
+            operators.insert(.others)
+        }
+        return operators
+    }
 }
 
 // 所有干员
@@ -2199,11 +2711,21 @@ class Operator2Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:所有|全体)(?:干员)?"#
     }
+
+    func getOperators() -> Set<SkillMorpheme.Operator> {
+        usedMorpheme.insert("\(type(of: self))")
+        return [.myself, .others]
+    }
 }
 
 class Operator3Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:每[[:Unit.all:]])?处于工作状态的干员"#
+    }
+
+    func getOperators() -> Set<SkillMorpheme.Operator> {
+        usedMorpheme.insert("\(type(of: self))")
+        return [.myself, .others, .atWork]
     }
 }
 
@@ -2225,6 +2747,15 @@ class Operator4Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
             self.range = value ~= /某.*干员/ ? .randomOne : .all
         }
     }
+
+    func getOperators() -> Set<SkillMorpheme.Operator> {
+        usedMorpheme.insert("\(type(of: self))")
+        if range == .all {
+            return [.unfulfilledMood, .myself, .others]
+        } else {
+            return [.unfulfilledMood, .randomOne]
+        }
+    }
 }
 
 class Operator5Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
@@ -2239,6 +2770,15 @@ class Operator5Morpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
         switch name {
         case .otherOperator:
             otherOperator = true
+        }
+    }
+
+    func getOperators() -> Set<SkillMorpheme.Operator> {
+        usedMorpheme.insert("\(type(of: self))")
+        if otherOperator {
+            return [.others]
+        } else {
+            return [.others, .myself]
         }
     }
 }
@@ -2261,6 +2801,22 @@ class OperatorMorpheme: BuffMorpheme, OperatorMethod, BuffMorphemeSubClass {
             if let value = morpheme(of: value, alias: "[[:Operator.all:]]") as? OperatorMethod {
                 self.operators = value
             }
+        }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        fatalError("call getOperator instead of")
+    }
+
+    func getOperators() -> Set<SkillMorpheme.Operator> {
+        usedMorpheme.insert("\(type(of: self))")
+        if let operators {
+            var result = operators.getOperators()
+            if selfExclusion {
+                result.remove(.myself)
+            }
+            return result
+        } else {
+            return [.myself]
         }
     }
 }
@@ -2300,6 +2856,27 @@ class EventMood1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.action = value == "恢复" ? .recovery : .consumption
         }
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+
+        target.items = [.mood]
+        target.itemFromOperator = operators.getOperators()
+
+        var oldValue = target.value
+        if !extra {
+            oldValue = nil
+        }
+        valueChanged.updateSkill(skill)
+        if (target.value?.isNegative() ?? false) != (action == .consumption) {
+            target.value?.negate()
+        }
+
+        if let oldValue {
+            target.value? += oldValue
+        }
+    }
 }
 
 class EventMood2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2324,11 +2901,21 @@ class EventMood2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class EventMood3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"<@cc.vdown>无法获得</>其他来源提供的心情恢复效果"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget()
+        target.items = [.mood]
+        target.itemFromOperator = [.myself]
+        target.value = .removeAll
     }
 }
 
@@ -2355,6 +2942,17 @@ class EventMood4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.kaibaSpecialRule = .removeMoodEffect
+        room.updateSkillInRoomAndRange(target)
+        if let gang {
+            gang.updateSkill(skill)
+        } else {
+            target.items = [.allPeople]
+        }
+    }
 }
 
 class EventMood6Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2378,11 +2976,24 @@ class EventMood6Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        target.items = [.mood]
+        target.itemFromOperator = operators.getOperators()
+        target.itemFromOperator?.insert(.evenly)
+        target.value = value
+    }
 }
 
 class EventMood8Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"<@cc\.kw>额外恢复心情(?:</>)+"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        // TODO:    test the actual value https://prts.wiki/w/吽
+        skill.getTarget().value = .number(1)
     }
 }
 
@@ -2401,6 +3012,16 @@ class EventMood9Morpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.operators = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        let target = skill.getTarget(updateTarget: .to)
+        if let operators {
+            target.items = [.mood]
+            target.itemFromOperator = operators.getOperators()
+        }
+        // TODO:    test the actual value https://prts.wiki/w/吽
+        target.value = .number(1)
     }
 }
 
@@ -2435,6 +3056,18 @@ class EventMood10Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        var target = skill.getTarget(updateTarget: .from)
+        target.valueType = .each
+        gang.updateSkill(skill)
+
+        target = skill.getTarget(updateTarget: .to)
+        target.itemInRooms.formUnion(room.roomTypes)
+        target.items = [.mood]
+        target.itemFromOperator = operators.getOperators()
+        valueChanged.updateSkill(skill)
+    }
 }
 
 class EventMorpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2453,6 +3086,11 @@ class EventMorpheme: BuffMorpheme, BuffMorphemeSubClass {
                 self.event = value
             }
         }
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .to
+        event.updateSkill(skill)
     }
 
     override var description: String {
@@ -2474,6 +3112,10 @@ class Note1Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.overlayAll = true
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.effectiveType = overlayAll ? .exclusiveAll : .exclusive
+    }
 }
 
 class Note2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2494,12 +3136,18 @@ class Note2Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.tagName = value
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().kaibaSpecialRuleID = tagID
+    }
 }
 
 class Note3Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"仅影响设施数量"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))") }
 }
 
 class Note4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
@@ -2523,11 +3171,18 @@ class Note4Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.value = .string(value)
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class Note5Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"该加成全局效果唯一"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.effectiveType = .exclusive
     }
 }
 
@@ -2535,11 +3190,17 @@ class Note6Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"工作时长(和招募位)?影响概率"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class Note7Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"不受其它加成影响"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
     }
 }
 
@@ -2547,11 +3208,17 @@ class Note8Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"不包含初始招募位"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class Note9Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"不包括副手"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
     }
 }
 
@@ -2569,6 +3236,10 @@ class Note10Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             }
         }
 
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        maxValue.updateSkill(skill)
     }
 }
 
@@ -2592,17 +3263,27 @@ class Note11Morpheme: BuffMorpheme, BuffMorphemeSubClass {
             self.ruleID = value
         }
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.getTarget().kaibaSpecialRuleID = ruleID
+    }
 }
 
 class Note12Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         "不包含副手"
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class Note13Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"不包含根据设施数量提供加成的生产力"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
     }
 }
 
@@ -2613,11 +3294,18 @@ class Note14Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"订单最少为1"#
     }
+
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class Note15Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         "(?:违约订单)?不视作(?:.*?)订单"
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
     }
 }
 
@@ -2625,11 +3313,18 @@ class Note16Morpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         "该技能对单[[:Unit.all:]]干员和多[[:Unit.all:]]干员生效时"
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+    }
 }
 
 class DeferIFMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:如果|若)"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
     }
 }
 
@@ -2637,11 +3332,23 @@ class DeferReverseMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:反之|但)"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .to
+        skill.state = .reverse
+    }
 }
 
 class DeferMakeMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:则|可?使|就|对|时|后)"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        if skill.hasFrom {
+            skill.target = .to
+            skill.state = .initial
+        }
     }
 }
 
@@ -2649,17 +3356,29 @@ class DeferAndMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:同时|且|；|;)"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .from
+        skill.state = .end
+    }
 }
 
 class DeferForMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"(?:(?:可以)?为)"#
     }
+    func updateSkill(_ skill: SkillMorpheme) {
+        usedMorpheme.insert("\(type(of: self))")
+        skill.target = .to
+    }
 }
 
 class DeferEachValueMorpheme: BuffMorpheme, BuffMorphemeSubClass {
     func rex() -> String {
         #"每[[:Unit.all:]]"#
+    }
+    func updateSkill(_ skill: SkillMorpheme) {
+        skill.getTarget().valueType = .each
     }
 }
 
@@ -2722,5 +3441,38 @@ class BuffParser {
                 }
             }
         }
+    }
+
+    func buildSkill() -> [SkillMorpheme] {
+        var skills: [SkillMorpheme] = []
+        var skill = SkillMorpheme()
+        skills.append(skill)
+        for buff in result {
+            if let buff = buff as? (any BuffMorphemeSubClass) {
+                buff.updateSkill(skill)
+            }
+            for note in buff._notes  {
+                if let note = note as? (any BuffMorphemeSubClass) {
+                    note.updateSkill(skill)
+                }
+            }
+            switch skill.state {
+            case .initial:
+                break
+            case .end:
+                let newSkill = SkillMorpheme()
+                skills.append(newSkill)
+                newSkill.effectiveRoom = skill.effectiveRoom
+                skill = newSkill
+            case .reverse:
+                let newSkill = SkillMorpheme()
+                skills.append(newSkill)
+                newSkill.effectiveRoom = skill.effectiveRoom
+                newSkill.from.copyFrom(skill.from)
+                newSkill.from.isReverse = true
+                skill = newSkill
+            }
+        }
+        return skills
     }
 }
