@@ -523,3 +523,7 @@ let descriptions = [
     "进驻贸易站时，贸易站内干员心情每小时消耗<@cc.vup>-0.1</>",
     "进驻贸易站时，贸易站内除自身以外每名处于工作状态的干员<@cc.vup>+15%</>订单获取效率",
 ]
+
+let parser = BuffParser()
+try parser.build(in: "进驻制造站时，基建内（不包含副手）每有1名<$cc.g.bs><@cc.kw>黑钢国际</></>干员（最多<@cc.kw>3</>名），<@cc.kw>贵金属</>类配方的生产力<@cc.vup>+2%</>，心情每小时消耗<@cc.vup>-0.15</>")
+print(parser.result)
