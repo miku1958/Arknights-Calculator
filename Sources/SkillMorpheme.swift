@@ -11,6 +11,54 @@ enum SkillMorphemeMethodTarget: Equatable, Encodable {
     case from, increase, to
 }
 
+enum RoomType: String, Equatable, Codable, CodingKeyRepresentable {
+    case control = "CONTROL"
+    case corridor = "CORRIDOR"
+    case dormitory = "DORMITORY"
+    case elevator = "ELEVATOR"
+    case functional = "FUNCTIONAL"
+    case hire = "HIRE"
+    case manufacture = "MANUFACTURE"
+    case meeting = "MEETING"
+    case power = "POWER"
+    case trading = "TRADING"
+    case training = "TRAINING"
+    case workshop = "WORKSHOP"
+    case others
+    init(localizedString: String) {
+        switch localizedString {
+        case "人力办公室":
+            self = .hire
+        case "会客室":
+            self = .meeting
+        case "制造站":
+            self = .manufacture
+        case "加工站":
+            self = .workshop
+        case "发电站":
+            self = .power
+        case "宿舍":
+            self = .dormitory
+        case "控制中枢":
+            self = .control
+        case "训练室":
+            self = .trading
+        case "贸易站":
+            self = .trading
+        case "其他设施":
+            self = .others
+        default:
+            fatalError("unknown \(localizedString)")
+        }
+    }
+}
+
+extension Set<RoomType> {
+    static var all: Self {
+        [.control, .corridor, .dormitory, .elevator, .functional, .hire, .manufacture, .meeting, .power, .trading, .training, .workshop]
+    }
+}
+
 @dynamicMemberLookup
 class SkillMorpheme: Equatable, Encodable {
     static func == (lhs: SkillMorpheme, rhs: SkillMorpheme) -> Bool {
@@ -34,48 +82,6 @@ class SkillMorpheme: Equatable, Encodable {
 
     enum Operator: Equatable, Encodable {
         case myself, others, atWork, unfulfilledMood, randomOne, evenly
-    }
-
-    enum RoomType: String, Equatable, Codable, CodingKeyRepresentable {
-        case control = "CONTROL"
-        case corridor = "CORRIDOR"
-        case dormitory = "DORMITORY"
-        case elevator = "ELEVATOR"
-        case functional = "FUNCTIONAL"
-        case hire = "HIRE"
-        case manufacture = "MANUFACTURE"
-        case meeting = "MEETING"
-        case power = "POWER"
-        case trading = "TRADING"
-        case training = "TRAINING"
-        case workshop = "WORKSHOP"
-        case others
-        init(localizedString: String) {
-            switch localizedString {
-            case "人力办公室":
-                self = .hire
-            case "会客室":
-                self = .meeting
-            case "制造站":
-                self = .manufacture
-            case "加工站":
-                self = .workshop
-            case "发电站":
-                self = .power
-            case "宿舍":
-                self = .dormitory
-            case "控制中枢":
-                self = .control
-            case "训练室":
-                self = .trading
-            case "贸易站":
-                self = .trading
-            case "其他设施":
-                self = .others
-            default:
-                fatalError("unknown \(localizedString)")
-            }
-        }
     }
 
     @dynamicMemberLookup
@@ -175,9 +181,9 @@ class SkillMorpheme: Equatable, Encodable {
     }
 
     struct Content: Equatable, Encodable {
-        fileprivate var state: State = .initial
+        var state: State = .initial
 
-        fileprivate var target: SkillMorphemeMethodTarget?
+        var target: SkillMorphemeMethodTarget?
 
         var effectiveType: EffectiveType = .simultaneous
 
